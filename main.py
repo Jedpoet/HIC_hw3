@@ -147,14 +147,13 @@ def match(candidate, templates):
     best_label = None
 
     for label, templates in templates.items():
-        dist = 0
         # 計算候選軌跡與該樣板的距離
         for template_points in templates:
-            dist += path_distance(pts, template_points)
+            dist = path_distance(pts, template_points)
 
-        if dist / len(templates) < best_distance:
-            best_distance = dist
-            best_label = label
+            if dist < best_distance:
+                best_distance = dist
+                best_label = label
 
     # 計算相似度分數 (0 ~ 1)
     half_diagonal = 0.5 * math.hypot(SQUARE_SIZE, SQUARE_SIZE)
