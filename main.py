@@ -3,12 +3,14 @@ import math
 
 points = []
 
+in_INPUT = True
+
 
 def find_distance(point1, point2):
     return math.hypot(point1[0] - point2[0], point1[1] - point2[1])
 
 
-def resample(N):
+def resample(N, points):
     new_points = []
     length = sum(
         find_distance(points[i], points[i + 1]) for i in range(len(points) - 1)
@@ -66,13 +68,33 @@ def rotate(points, com):
         rotated_points.append((rx, ry))
 
     return rotated_points
-    pass
 
 
-def recognize(N):
-    res_points = resample(N)
+def resize(points, com, size=250.0):
+    min_x = min(p[0] for p in points)
+    max_x = max(p[0] for p in points)
+    min_y = min(p[1] for p in points)
+    max_y = max(p[1] for p in points)
+    w = max(max_x - min_x, 1e-6)
+    h = max(max_y - min_y, 1e-6)
+    pts = [(p[0] * (size / w), p[1] * (size / h)) for p in points]
+
+    target_pt = (0.0, 0.0)
+    return [(p[0] + target_pt[0] - com[0], p[1] + target_pt[1] - com[1]) for p in pts]
+
+
+def recognize(N, points):
+    res_points = resample(N, points)
     com = centroid(res_points)
     rot_points = rotate(res_points, com)
+    new_points = resize(rot_points, 250.0)
+
+    if in_INPUT:
+        # TODO: 存檔
+        pass
+    else:
+        # TODO: 分析
+        pass
 
     return "3"
 
@@ -84,13 +106,24 @@ def on_drag(event):
 
 def on_release(event):
     # 呼叫 $1 辨識函數
-    result = recognize(N=64)
+    result = recognize(64, points)
     result_label.config(text=f"辨識結果: {result}")
     points.clear()
 
 
 def on_click():
     canvas.delete("all")
+
+
+# TODO: 整理switch相關功能成輸入模板
+switch_var = tk.StringVar(value="OFF")
+
+
+def toggle():
+    if switch_var.get() == "ON":
+        switch_btn.config(text="Switch is ON", bg="lightgreen")
+    else:
+        switch_btn.config(text="Switch is OFF", bg="lightgray")
 
 
 root = tk.Tk()
@@ -100,6 +133,20 @@ canvas.bind("<B1-Motion>", on_drag)
 canvas.bind("<ButtonRelease-1>", on_release)
 result_label = tk.Label(root, text="請在上方繪製數字 (0-9)", font=("Arial", 16))
 result_label.pack()
+switch_btn = tk.Checkbutton(
+    root,
+    text="輸入模板",
+    variable=switch_var,
+    onvalue="ON",
+    offvalue="OFF",
+    indicatoron=False,  # Hides the standard checkbox box
+    command=toggle,
+    bg="lightgray",
+    selectcolor="lightgreen",
+    padx=10,
+    pady=5,
+)
 clear_button = tk.Button(root, text="清空", command=on_click)
 clear_button.pack()
+
 root.mainloop()
