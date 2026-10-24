@@ -125,8 +125,16 @@ def preprocess(points, N=N_POINTS):
     return translate_to_origin(scaled)
 
 
+def path_distance(pts1, pts2):
+    """計算兩組等長點集的平均點對點歐幾里得距離"""
+    total_dist = sum(
+        math.hypot(p1[0] - p2[0], p1[1] - p2[1]) for p1, p2 in zip(pts1, pts2)
+    )
+    return total_dist / len(pts1)
+
+
 # ---------------------------------------------------------------------------
-# Pattern matching（留給你自己實作）
+# Pattern matching
 # ---------------------------------------------------------------------------
 def match(candidate, templates):
     """
@@ -134,9 +142,25 @@ def match(candidate, templates):
     templates : { label: [ [[x, y], ...], ... ] }
     回傳 (best_label, score)；尚未實作時回傳 (None, 0.0)
     """
-    # TODO: 實作 $1 的 pattern matching
-    #   (例如 path distance + golden section search 找最佳角度，再換算 score)
-    return (None, 0.0)
+    pts = preprocess(candidate)
+    best_distance = float("inf")
+    best_label = None
+
+    for label, templates in templates.items():
+        dist = 0
+        # 計算候選軌跡與該樣板的距離
+        for template_points in templates:
+            dist += path_distance(pts, template_points)
+
+        if dist / len(templates) < best_distance:
+            best_distance = dist
+            best_label = label
+
+    # 計算相似度分數 (0 ~ 1)
+    half_diagonal = 0.5 * math.hypot(SQUARE_SIZE, SQUARE_SIZE)
+    score = max(0.0, 1.0 - (best_distance / half_diagonal))
+
+    return (best_label, score)
 
 
 # ---------------------------------------------------------------------------
@@ -202,9 +226,7 @@ def on_release(event):
     if is_record_mode():
         data.setdefault(label, []).append([list(p) for p in new_points])
         save_templates(data)
-        status_label.config(
-            text=f"已存入「{label}」（共 {len(data[label])} 個模板）"
-        )
+        status_label.config(text=f"已存入「{label}」（共 {len(data[label])} 個模板）")
     else:
         if not data:
             status_label.config(text="沒有手勢模板，請先切到錄製模式")
@@ -272,8 +294,12 @@ def open_template_viewer():
     listbox.bind("<<ListboxSelect>>", on_select)
     btns = tk.Frame(left)
     btns.pack(fill="x", pady=4)
-    tk.Button(btns, text="重新整理", command=refresh).pack(side="left", expand=True, fill="x")
-    tk.Button(btns, text="刪除", command=on_delete).pack(side="left", expand=True, fill="x")
+    tk.Button(btns, text="重新整理", command=refresh).pack(
+        side="left", expand=True, fill="x"
+    )
+    tk.Button(btns, text="刪除", command=on_delete).pack(
+        side="left", expand=True, fill="x"
+    )
     refresh()
 
 
@@ -284,12 +310,28 @@ root.title("$1 Unistroke Recognizer")
 top = tk.Frame(root)
 top.pack(fill="x", padx=8, pady=6)
 mode_var = tk.StringVar(value="recognize")
-tk.Radiobutton(top, text="辨識", variable=mode_var, value="recognize",
-               command=on_mode_change, indicatoron=False, padx=10, pady=4,
-               selectcolor="lightblue").pack(side="left")
-tk.Radiobutton(top, text="錄製模板", variable=mode_var, value="record",
-               command=on_mode_change, indicatoron=False, padx=10, pady=4,
-               selectcolor="lightgreen").pack(side="left", padx=(4, 12))
+tk.Radiobutton(
+    top,
+    text="辨識",
+    variable=mode_var,
+    value="recognize",
+    command=on_mode_change,
+    indicatoron=False,
+    padx=10,
+    pady=4,
+    selectcolor="lightblue",
+).pack(side="left")
+tk.Radiobutton(
+    top,
+    text="錄製模板",
+    variable=mode_var,
+    value="record",
+    command=on_mode_change,
+    indicatoron=False,
+    padx=10,
+    pady=4,
+    selectcolor="lightgreen",
+).pack(side="left", padx=(4, 12))
 tk.Label(top, text="標籤:").pack(side="left")
 label_var = tk.StringVar()
 label_entry = tk.Entry(top, textvariable=label_var, width=12, state="disabled")
@@ -307,7 +349,9 @@ status_label.pack(pady=4)
 bottom = tk.Frame(root)
 bottom.pack(pady=(0, 8))
 tk.Button(bottom, text="清空", command=on_clear, width=10).pack(side="left", padx=4)
-tk.Button(bottom, text="查看模板", command=open_template_viewer, width=10).pack(side="left", padx=4)
+tk.Button(bottom, text="查看模板", command=open_template_viewer, width=10).pack(
+    side="left", padx=4
+)
 
 on_mode_change()
 root.mainloop()
